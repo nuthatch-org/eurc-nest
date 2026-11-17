@@ -51,7 +51,8 @@ d9b21ae (MIT, `LICENSE-eth-labels`). They carry no `area:` labels, so all of (d)
 
 ## Run it
 
-From the public mirror, which downloads the sealed history and checks every file against its hash,
+Needs nuthatch 5.22.0 or later, the first release with `evidence` and the segment pin. From the
+public mirror, which downloads the sealed history and checks every file against its hash,
 then follows the chain from where the mirror ends:
 
 ```sh
@@ -76,22 +77,31 @@ it read, if any. `evidence verify` asks a nest of the same NID the same statemen
 and says match, or names the field that differs.
 
 The December 2022 figure above is attached to this repository's
-[first release](https://github.com/nuthatch-org/eurc-nest/releases/tag/v1) as `dec-2022.json`,
-made on the nest that publishes the mirror. To check it you need no RPC, only the mirror:
+[latest release](https://github.com/nuthatch-org/eurc-nest/releases/latest) as `dec-2022.json`,
+made on the nest that publishes the mirror. To check it you need no RPC, only the mirror. Keep the
+bundle outside the clone: every file in the directory is part of the nest's identity, so a stray
+one makes it another nest, which the mirror does not hold.
 
 ```sh
-git clone https://github.com/nuthatch-org/eurc-nest && cd eurc-nest
+curl -sLO https://github.com/nuthatch-org/eurc-nest/releases/latest/download/dec-2022.json
+git clone https://github.com/nuthatch-org/eurc-nest && cd eurc-nest   # skip if you did Run it
 nuthatch seed --from https://pub-bc282d5016f242a783a6c28cbcd4401a.r2.dev
 nuthatch labels import labels-illustrative.csv
-nuthatch serve &
-nuthatch evidence verify dec-2022.json --url http://127.0.0.1:8288
+nuthatch serve --listen 127.0.0.1:8288 &
+until curl -sf http://127.0.0.1:8288/ready >/dev/null; do sleep 1; done
+nuthatch evidence verify ../dec-2022.json --url http://127.0.0.1:8288 --dir .
 ```
 
-It prints `match: 1 row(s) at block 16308594 reproduce`. A bundle whose rows were altered, or one
-made on a nest with another NID, prints `MISMATCH` and the field that differs. The seed took 6
-minutes 40 for 13,998 segments (183 MB), each checked against its hash on arrival. `serve` does
-not re-hash them afterwards, so check a copy you have kept a while with `nuthatch dev`, which
-does at startup.
+If something already listens on 8288, pick another port for both `--listen` and `--url`. It
+prints `match: 1 row(s) at block 16308594 reproduce`. A bundle whose rows were altered, one made
+on a nest with another NID, or a segment file whose bytes changed on your disk prints `MISMATCH`
+and names what differs. The seed takes a few minutes for 13,998 segments (183 MB), each checked
+against its hash on arrival; `--dir` checks them again before the nest is asked.
+
+Two identities appear along the way. `seed` names the dataset, the hash of what decides the data:
+the contract, ABI and start block. The bundle names the NID, the hash of every file in the nest,
+views and this README included. Two nests can share a dataset and differ in NID, so verify checks
+the NID.
 
 To bundle a figure of your own, ask a running nest for it as of a sealed block:
 
